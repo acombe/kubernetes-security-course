@@ -1,6 +1,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
+  namespace: infres
   name: vulnnode-ingress
   annotations:
     kubernetes.io/ingress.class: "traefik"
@@ -20,6 +21,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  namespace: infres
   name: vulnnode-service
   labels:
     run: vulnnode
@@ -33,6 +35,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  namespace: infres
   name: vulnnode
   labels:
     app: vulnnode
@@ -46,6 +49,7 @@ spec:
       labels:
         app: vulnnode
     spec:
+      serviceAccountName: infres-serviceaccount
       containers:
         - name: vulnnode
           image: registry.infres.fr/vulnnode
