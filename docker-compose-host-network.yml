@@ -1,0 +1,10 @@
+# Need to go directly through host network for build (and run ?) when internet is not accessible from WSL container (VPN on Win host etc.)
+version: '3.7'
+services:
+  vulnnode:
+    build:
+      context: .
+      network: host
+    image: registry.infres.fr/vulnnode
+    network_mode: "host"
+    command: ./server.js

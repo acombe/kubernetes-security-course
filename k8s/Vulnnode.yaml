@@ -1,0 +1,55 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vulnnode-ingress
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+spec:
+  rules:
+    - host: vulnnode.infres.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vulnnode-service
+                port:
+                  number: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vulnnode-service
+  labels:
+    run: vulnnode
+spec:
+  selector:
+    app: vulnnode
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnnode
+  labels:
+    app: vulnnode
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnnode
+  template:
+    metadata:
+      labels:
+        app: vulnnode
+    spec:
+      containers:
+        - name: vulnnode
+          image: registry.infres.fr/vulnnode
+          command: ["node"]
+          args: ["server.js"]
+          ports:
+            - containerPort: 3000
