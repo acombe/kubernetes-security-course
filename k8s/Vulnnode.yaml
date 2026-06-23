@@ -3,9 +3,8 @@ kind: Ingress
 metadata:
   namespace: infres
   name: vulnnode-ingress
-  annotations:
-    kubernetes.io/ingress.class: "traefik"
 spec:
+  ingressClassName: "traefik"
   rules:
     - host: vulnnode.infres.fr
       http:
