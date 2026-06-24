@@ -1,6 +1,6 @@
 FROM node:24
 
-RUN apt-get update && apt-get install -y dnsutils
+RUN apt-get update && apt-get install -y dnsutils iputils-ping
 
 RUN mkdir -p /usr/src/infres/
 WORKDIR /usr/src/infres/
